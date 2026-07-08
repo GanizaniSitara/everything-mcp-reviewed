@@ -209,11 +209,12 @@ Periods: `1min` … `12hours`, `today`, `yesterday`, `1day` … `1year`
 
 Parameters: `period` (default `1hour`), `path`, `extensions`, `query`, `max_results`
 
-### 4. `everything_file_details` - deep inspection
+### 4. `everything_file_details` - metadata inspection
 
 Parameters: `paths` *(required, 1-20)*, `preview_lines` (0-200)
 
-Returns full metadata; for directories, item count and listing; for text files with a preview, the first N lines.
+Returns metadata; for directories, item count and listing. In this reviewed
+local fork, file-content preview is disabled even if `preview_lines` is set.
 
 ### 5. `everything_count_stats` - quick analytics
 
@@ -229,7 +230,7 @@ Count and size stats without listing every file - check scope before a big searc
 |---|---|
 | Python files modified today in my project | `everything_find_recent(period="today", extensions="py", path="C:\Projects\myapp")` |
 | How much space do my log files use? | `everything_count_stats(query="ext:log", include_size=true, breakdown_by_extension=true)` |
-| First 50 lines of a config file | `everything_file_details(paths=["C:\Projects\app\config.yaml"], preview_lines=50)` |
+| Metadata for a config file | `everything_file_details(paths=["C:\Projects\app\config.yaml"])` |
 | Duplicate filenames in Documents | `everything_search(query='dupe: path:"C:\Users\me\Documents"')` |
 | Images larger than 5MB | `everything_search(query="ext:jpg;png;gif size:>5mb")` |
 

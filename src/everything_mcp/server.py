@@ -320,7 +320,10 @@ class FileDetailsInput(BaseModel):
     )
     preview_lines: int = Field(
         default=0,
-        description="Lines of text content to preview (0 = none, max 200)",
+        description=(
+            "Reserved for upstream compatibility. Content preview is disabled "
+            "in this reviewed local fork; metadata is returned only."
+        ),
         ge=0,
         le=200,
     )
@@ -329,7 +332,7 @@ class FileDetailsInput(BaseModel):
 @mcp.tool(
     name="everything_file_details",
     annotations={
-        "title": "Get File Details & Content Preview",
+        "title": "Get File Details",
         "readOnlyHint": True,
         "destructiveHint": False,
         "idempotentHint": True,
@@ -337,11 +340,13 @@ class FileDetailsInput(BaseModel):
     },
 )
 async def everything_file_details(params: FileDetailsInput) -> str:
-    """Get detailed metadata and optional content preview for specific files.
+    """Get detailed metadata for specific files.
 
     Returns: full path, size, dates, type, permissions, hidden status.
     For directories: item count, subdirectories, file listing.
-    For text files with preview_lines > 0: first N lines of content.
+
+    This local reviewed fork intentionally does not return file content
+    previews through MCP.
     """
     # Run blocking file I/O in thread pool to not block the event loop
     return await asyncio.to_thread(
@@ -398,11 +403,8 @@ def _get_file_details_sync(paths: list[str], preview_lines: int) -> str:
                 except OSError as exc:
                     info["listing_error"] = str(exc)
 
-            # Content preview for text files
             elif preview_lines > 0:
-                preview = _read_preview(p, preview_lines)
-                if preview is not None:
-                    info["preview"] = preview
+                info["preview_note"] = "Content preview disabled in this reviewed local fork"
 
         except PermissionError:
             info["error"] = "Permission denied"
@@ -590,222 +592,9 @@ def _format_search_results(
     return "\n".join(lines)
 
 
-# ── Text file preview ─────────────────────────────────────────────────────
-
-# Extensions we can safely read as text
-_TEXT_EXTENSIONS: frozenset[str] = frozenset(
-    {
-        # Text & docs
-        "txt",
-        "md",
-        "mdx",
-        "rst",
-        "adoc",
-        "org",
-        # Python
-        "py",
-        "pyi",
-        "pyw",
-        "pyx",
-        "pxd",
-        # JavaScript/TypeScript
-        "js",
-        "mjs",
-        "cjs",
-        "ts",
-        "mts",
-        "cts",
-        "jsx",
-        "tsx",
-        # Web frameworks
-        "vue",
-        "svelte",
-        "astro",
-        "marko",
-        # C family
-        "c",
-        "cpp",
-        "cc",
-        "cxx",
-        "h",
-        "hpp",
-        "hxx",
-        "cs",
-        "java",
-        "m",
-        "mm",
-        # Systems languages
-        "go",
-        "rs",
-        "rb",
-        "php",
-        "swift",
-        "kt",
-        "kts",
-        "scala",
-        "r",
-        "lua",
-        # Shell
-        "sh",
-        "bash",
-        "zsh",
-        "fish",
-        "ps1",
-        "psm1",
-        "psd1",
-        "bat",
-        "cmd",
-        # Database & query
-        "sql",
-        "prisma",
-        "graphql",
-        "gql",
-        # Web
-        "html",
-        "htm",
-        "css",
-        "scss",
-        "sass",
-        "less",
-        "styl",
-        "pcss",
-        # Data formats
-        "json",
-        "jsonc",
-        "json5",
-        "jsonl",
-        "ndjson",
-        "xml",
-        "xsl",
-        "xslt",
-        "xsd",
-        "svg",
-        "rss",
-        "atom",
-        "yaml",
-        "yml",
-        "toml",
-        "ini",
-        "cfg",
-        "conf",
-        "env",
-        "properties",
-        "csv",
-        "tsv",
-        "log",
-        # Config files (with extensions)
-        "gitignore",
-        "gitattributes",
-        "gitmodules",
-        "npmrc",
-        "nvmrc",
-        "yarnrc",
-        "dockerignore",
-        "editorconfig",
-        "eslintrc",
-        "prettierrc",
-        "babelrc",
-        "stylelintrc",
-        "browserslistrc",
-        # Build tools
-        "makefile",
-        "dockerfile",
-        "cmake",
-        "gradle",
-        "sbt",
-        "cabal",
-        "bazel",
-        # Academic
-        "tex",
-        "bib",
-        "cls",
-        "sty",
-        # Hardware
-        "asm",
-        "s",
-        "v",
-        "sv",
-        "vhd",
-        "vhdl",
-        # Modern languages
-        "dart",
-        "zig",
-        "nim",
-        "hx",
-        "odin",
-        "jai",
-        "vlang",
-        # Functional
-        "ex",
-        "exs",
-        "erl",
-        "hrl",
-        "hs",
-        "lhs",
-        "ml",
-        "mli",
-        "fs",
-        "fsi",
-        "fsx",
-        "clj",
-        "cljs",
-        "cljc",
-        "edn",
-        "lisp",
-        "el",
-        "rkt",
-        "scm",
-        "fnl",
-        # Other
-        "pro",
-        "pri",
-        "qml",
-        "proto",
-        "thrift",
-        "capnp",
-        "tf",
-        "hcl",
-        "nix",
-        "dhall",
-        "jsonnet",
-        "cue",
-        "http",
-        "rest",
-        "lock",
-    }
-)
-
-# Filenames (no extension) that are always text
-_TEXT_FILENAMES: frozenset[str] = frozenset(
-    {
-        "makefile",
-        "dockerfile",
-        "cmakelists.txt",
-        "rakefile",
-        "gemfile",
-        "procfile",
-        "vagrantfile",
-        "brewfile",
-        "justfile",
-        "taskfile",
-        "license",
-        "licence",
-        "readme",
-        "authors",
-        "contributors",
-        "changelog",
-        "changes",
-        "history",
-        "news",
-        "todo",
-    }
-)
-
 _MAX_DIR_SCAN_ITEMS = 10_000
 _MAX_SUBDIRECTORY_SAMPLE = 20
 _MAX_FILE_SAMPLE = 30
-_MAX_PREVIEW_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
-_MAX_PREVIEW_CHARS = 50_000
 
 
 def _summarize_directory(path: Path) -> dict[str, object]:
@@ -842,79 +631,3 @@ def _summarize_directory(path: Path) -> dict[str, object]:
     elif scanned > (_MAX_SUBDIRECTORY_SAMPLE + _MAX_FILE_SAMPLE):
         summary["note"] = f"Showing first items of {scanned} total"
     return summary
-
-
-def _read_preview(path: Path, max_lines: int) -> str | None:
-    """Read the first *max_lines* lines of a text file.
-
-    Returns ``None`` for binary files or files that can't be read.
-    """
-    try:
-        if path.stat().st_size > _MAX_PREVIEW_FILE_SIZE:
-            return "(file too large for preview)"
-    except OSError:
-        return None
-
-    ext = path.suffix.lstrip(".").lower()
-    name_lower = path.name.lower()
-    stem_lower = path.stem.lower()
-
-    is_text = (
-        ext in _TEXT_EXTENSIONS
-        or name_lower in _TEXT_FILENAMES
-        or stem_lower in _TEXT_FILENAMES
-        or name_lower.startswith(".")  # dotfiles are usually text
-    )
-
-    if not is_text:
-        # Sniff for binary content
-        try:
-            with open(path, "rb") as f:
-                chunk = f.read(512)
-                if b"\x00" in chunk:
-                    return None  # binary
-                is_text = True
-        except (OSError, PermissionError):
-            return None
-
-    if not is_text:
-        return None
-
-    # Read lines with encoding fallback
-    for encoding in ("utf-8", "utf-8-sig", "latin-1"):
-        try:
-            with open(path, encoding=encoding) as f:
-                lines: list[str] = []
-                total_chars = 0
-                truncated = False
-                for _ in range(max_lines):
-                    remaining = _MAX_PREVIEW_CHARS - total_chars
-                    if remaining <= 0:
-                        truncated = True
-                        break
-
-                    # Bound each read to avoid huge single-line payloads.
-                    line = f.readline(remaining + 1)
-                    if not line:
-                        break
-
-                    if len(line) > remaining:
-                        line = line[:remaining]
-                        truncated = True
-
-                    total_chars += len(line)
-                    lines.append(line.rstrip("\n\r"))
-
-                    if total_chars >= _MAX_PREVIEW_CHARS:
-                        truncated = True
-                        break
-
-                if truncated:
-                    lines.append("... [preview truncated]")
-                return "\n".join(lines)
-        except UnicodeDecodeError:
-            continue
-        except (OSError, PermissionError):
-            return None
-
-    return "(unable to decode file content)"

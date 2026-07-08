@@ -17,7 +17,7 @@ filename-based lookup outside the current project directory.
 | Find files/folders by name, extension, size, date | `everything_search` |
 | "What changed in the last hour/day/week?" | `everything_find_recent` |
 | All videos / documents / code / archives somewhere | `everything_search_by_type` |
-| Metadata or first N lines of specific files | `everything_file_details` |
+| Metadata for specific files | `everything_file_details` |
 | "How many?" / "How much disk space?" | `everything_count_stats` |
 
 Use `everything_count_stats` BEFORE listing when a query might match
@@ -51,14 +51,14 @@ regex:^test_.*\.py$           regex (or pass match_regex=true)
 - Find a config file of unknown location: `everything_search(query="wg0.conf | wireguard ext:conf")`
 - Recently downloaded file: `everything_find_recent(period="1hour", path="C:\\Users\\<user>\\Downloads")`
 - Disk usage of build artifacts: `everything_count_stats(query="path:C:\\Projects node_modules folder:", include_size=true)`
-- Then inspect what you found: `everything_file_details(paths=[...], preview_lines=30)`
+- Then inspect metadata for what you found: `everything_file_details(paths=[...])`
 
 ## Pitfalls
 
 - Paths with spaces must be quoted INSIDE the query: `path:"C:\My Documents"`.
 - Results reflect the index, not content: `content:` search only works if the
-  user enabled content indexing in Everything (rare) - to search inside files,
-  find candidates by name first, then read them.
+  user enabled content indexing in Everything (rare). This reviewed local fork
+  does not return file-content previews through MCP.
 - Everything must be running; if tools return connection errors, tell the user
   to start Everything (system tray). Do not suggest setting
   `EVERYTHING_INSTANCE` unless they configured a named instance.
